@@ -18,54 +18,104 @@ def load_data():
     referendum = pd.DataFrame({})
     regions = pd.DataFrame({})
     departments = pd.DataFrame({})
+    referendum = pd.read_csv("data/referendum.csv", sep=";")
+    regions = pd.read_csv("data/regions.csv")
+    departments = pd.read_csv("data/departments.csv")
 
     return referendum, regions, departments
 
 
-def merge_regions_and_departments(regions, departments):
+def merge_regions_and_departments(
+    regions: pd.DataFrame, departments: pd.DataFrame
+):
     """Merge regions and departments in one DataFrame.
-
     The columns in the final DataFrame should be:
     ['code_reg', 'name_reg', 'code_dep', 'name_dep']
     """
 
-    return pd.DataFrame({})
+    regions_and_departments = regions.merge(
+        departments,
+        left_on="code",
+        right_on="region_code",
+        how="right",
+        suffixes=("_reg", "_dep"),
+    )
+    regions_and_departments = regions_and_departments[
+        ["code_reg", "name_reg", "code_dep", "name_dep"]
+    ]
+    return regions_and_departments
 
-
-def merge_referendum_and_areas(referendum, regions_and_departments):
+def merge_referendum_and_areas(
+    referendum: pd.DataFrame, regions_and_departments: pd.DataFrame
+):
     """Merge referendum and regions_and_departments in one DataFrame.
-
     You can drop the lines relative to DOM-TOM-COM departments, and the
-    french living abroad, which all have a code that contains `Z`.
-
+@@ -41,21 +56,49 @@ def merge_referendum_and_areas(referendum, regions_and_departments):
     DOM-TOM-COM departments are departements that are remote from metropolitan
     France, like Guadaloupe, Reunion, or Tahiti.
     """
+    referendum["Department code"] = referendum["Department code"].str.zfill(2)
 
-    return pd.DataFrame({})
+    merged = referendum.merge(
+        regions_and_departments,
+        left_on="Department code",
+        right_on="code_dep",
+        how="left",
+    )
+    mask_drop = merged["Department code"].str.contains("Z")
+    merged = merged[~mask_drop].reset_index(drop=True).dropna()
+
+    return merged
 
 
-def compute_referendum_result_by_regions(referendum_and_areas):
+def compute_referendum_result_by_regions(referendum_and_areas: pd.DataFrame):
     """Return a table with the absolute count for each region.
-
     The return DataFrame should be indexed by `code_reg` and have columns:
     ['name_reg', 'Registered', 'Abstentions', 'Null', 'Choice A', 'Choice B']
     """
+    referendum_result_by_regions = (
+        referendum_and_areas[
+            [
+                "code_reg",
+                "name_reg",
+                "Registered",
+                "Abstentions",
+                "Null",
+                "Choice A",
+                "Choice B",
+            ]
+        ]
+        .groupby(["code_reg", "name_reg"])
+        .sum()
+    )
+    referendum_result_by_regions = (
+        referendum_result_by_regions.reset_index().set_index("code_reg")
+    )
+    return referendum_result_by_regions
 
-    return pd.DataFrame({})
 
-
-def plot_referendum_map(referendum_result_by_regions):
+def plot_referendum_map(referendum_result_by_regions: pd.DataFrame):
     """Plot a map with the results from the referendum.
-
     * Load the geographic data with geopandas from `regions.geojson`.
-    * Merge these info into `referendum_result_by_regions`.
-    * Use the method `GeoDataFrame.plot` to display the result map. The results
+@@ -64,16 +107,27 @@ def plot_referendum_map(referendum_result_by_regions):
       should display the rate of 'Choice A' over all expressed ballots.
     * Return a gpd.GeoDataFrame with a column 'ratio' containing the results.
     """
+    geo_data = gpd.read_file("data/regions.geojson")
 
-    return gpd.GeoDataFrame({})
+    geo_data = geo_data.merge(
+        referendum_result_by_regions,
+        left_on="code",
+        right_on="code_reg",
+        how="outer",
+    )
+
+    geo_data["ratio"] = geo_data["Choice A"] / (
+        geo_data["Choice A"] + geo_data["Choice B"]
+    )
+
+    geo_data.plot("ratio")
+    return geo_data
 
 
 if __name__ == "__main__":
