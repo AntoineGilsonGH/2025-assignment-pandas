@@ -45,12 +45,12 @@ def merge_regions_and_departments(
     ]
     return regions_and_departments
 
+
 def merge_referendum_and_areas(
     referendum: pd.DataFrame, regions_and_departments: pd.DataFrame
 ):
     """Merge referendum and regions_and_departments in one DataFrame.
     You can drop the lines relative to DOM-TOM-COM departments, and the
-@@ -41,21 +56,49 @@ def merge_referendum_and_areas(referendum, regions_and_departments):
     DOM-TOM-COM departments are departements that are remote from metropolitan
     France, like Guadaloupe, Reunion, or Tahiti.
     """
@@ -88,10 +88,10 @@ def compute_referendum_result_by_regions(referendum_and_areas: pd.DataFrame):
         .groupby(["code_reg", "name_reg"])
         .sum()
     )
-    referendum_result_by_regions = (
-        referendum_result_by_regions.reset_index().set_index("code_reg")
-    )
-    return referendum_result_by_regions
+    referendum_result_by_regions = referendum_result_by_regions.reset_index()
+    referendum_result = referendum_result_by_regions.set_index("code_reg")
+
+    return referendum_result
 
 
 def plot_referendum_map(referendum_result_by_regions: pd.DataFrame):
